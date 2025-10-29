@@ -1,5 +1,7 @@
-﻿using System;
+﻿﻿using System;
+using System.Collections.Generic;
 using System.Data;
+using System.Data.SqlClient;
 using System.Windows.Forms;
 
 namespace QuanLyCafe
@@ -54,8 +56,8 @@ namespace QuanLyCafe
             }
 
             // Lấy mốc ngày: [from, toNext) để không bỏ sót hóa đơn trong "Đến ngày"
-            string from = dtDFrom.Value.ToString("yyyyMMdd");              // ví dụ 20251007 00:00
-            string toNext = dtDTo.Value.AddDays(1).ToString("yyyyMMdd");   // ngày hôm sau của "Đến ngày"
+            string from = dtDFrom.Value.ToString("yyyy-MM-dd");
+            string to = dtDTo.Value.ToString("yyyy-MM-dd");
 
             // TOP hàng bán chạy theo Số lượng (nếu bằng nhau, theo Doanh thu)
             string sqlTop = $@"
@@ -63,13 +65,17 @@ namespace QuanLyCafe
                SUM(ct.SoLuong)   AS [Số lượng],       -- Tổng số lượng đã bán
                SUM(ct.ThanhTien) AS [Doanh thu]       -- Tổng doanh thu (đã tính sẵn ở chi tiết)
         FROM HoaDon hd
-        JOIN ChiTietHoaDon ct ON ct.MaHD = hd.MaHD
-        JOIN DoUong d        ON d.MaDU = ct.MaDU
-        WHERE hd.NgayLap >= '{from}' AND hd.NgayLap < '{toNext}' -- lọc theo khoảng ngày [from, toNext)
+        INNER JOIN ChiTietHoaDon ct ON ct.MaHD = hd.MaHD
+        INNER JOIN DoUong d        ON d.MaDU = ct.MaDU
+        WHERE hd.TrangThai = 1 AND hd.NgayLap BETWEEN @FromDate AND @ToDate
         GROUP BY d.TenDU
         ORDER BY SUM(ct.SoLuong) DESC, SUM(ct.ThanhTien) DESC";    // sắp xếp: SL giảm dần, rồi DT giảm dần
 
-            DataTable dt = ConnectSQL.Load(sqlTop);   // Thực thi SQL và lấy bảng dữ liệu
+            List<SqlParameter> parameters = new List<SqlParameter> {
+                new SqlParameter("@FromDate", from),
+                new SqlParameter("@ToDate", to)
+            };
+            DataTable dt = ConnectSQL.Load(sqlTop, parameters);   // Thực thi SQL và lấy bảng dữ liệu
             dtgvData.DataSource = dt;                 // Đổ vào DataGridView
 
             // Căn lề & định dạng cột số

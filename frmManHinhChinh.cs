@@ -1,7 +1,8 @@
-﻿using System;
+﻿﻿using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Data;
+using System.Data.SqlClient;
 using System.Drawing;
 using System.Linq;
 using System.Text;
@@ -94,9 +95,14 @@ namespace QuanLyCafe
         }
         private void LoadMenuDoUong()
         {
-            string strSQL = $@"SELECT MaDU,TenDU,MaLoai,DonGia FROM DoUong WHERE TenDU LIKE N'%{txtTenDoUong.Text}%'";
+            string strSQL = "SELECT MaDU, TenDU, MaLoai, DonGia FROM DoUong WHERE TenDU LIKE @TenDU";
+            List<SqlParameter> parameters = new List<SqlParameter>
+            {
+                new SqlParameter("@TenDU", "%" + txtTenDoUong.Text + "%")
+            };
+
             DataTable dt = new DataTable();
-            dt = ConnectSQL.Load(strSQL);
+            dt = ConnectSQL.Load(strSQL, parameters);
             dtgvDoUong.DataSource = dt;
             frmNhanVien.SetupDataGridView(dtgvDoUong);
             dtgvDoUong.Columns[0].HeaderText = "Mã đồ uống";
@@ -136,14 +142,19 @@ namespace QuanLyCafe
         }
         private void LoadDoUongDaGoi()
         {
-            string strSQL = $@"SELECT a.MaDU,c.TenDU,a.SoLuong,a.DonGia,a.ThanhTien,b.MaHD FROM ChiTietHoaDon a 
+            string strSQL = @"SELECT a.MaDU, c.TenDU, a.SoLuong, a.DonGia, a.ThanhTien, b.MaHD 
+                                FROM ChiTietHoaDon a 
                                 INNER JOIN HoaDon b ON a.MaHD = b.MaHD 
                                 INNER JOIN DoUong c ON a.MaDU = c.MaDU 
                                 INNER JOIN Ban d ON b.MaBan = d.MaBan 
-                                WHERE b.MaBan = '{btnBanDaChon.Text}' AND b.Trangthai = 0
-                                AND d.TrangThai = 1 AND b.MaBan = '{btnBanDaChon.Text}'";
+                                WHERE b.MaBan = @MaBan AND b.Trangthai = 0";
+            List<SqlParameter> parameters = new List<SqlParameter>
+            {
+                new SqlParameter("@MaBan", btnBanDaChon.Text)
+            };
+
             DataTable dt = new DataTable();
-            dt = ConnectSQL.Load(strSQL);
+            dt = ConnectSQL.Load(strSQL, parameters);
             dtgvHoaDon.DataSource = dt;
             frmNhanVien.SetupDataGridView(dtgvHoaDon);
             dtgvHoaDon.Columns[0].HeaderText = "Mã đồ uống";
@@ -175,16 +186,36 @@ namespace QuanLyCafe
             if (dtgvHoaDon.Rows.Count == 0) 
             {      
                 string MaHD = DateTime.Now.ToString("HDssmmhhddMMyyyy");
-                //Thêm vào bảng hóa đơn
-                string strSQL  = $@"INSERT INTO HoaDon(MaHD,NgayLap,MaNV,MaKH,MaBan,TongTien,TrangThai)
-                                     VALUES ('{MaHD}',
-                                            '{DateTime.Now.ToString("yyyyMMdd")}','{frmDangNhap.MaNV}',NULL,'{btnBanDaChon.Text}',0,0) ";
-                //Thêm vào bảng chi tiết hóa đơn
-                strSQL += $@" INSERT INTO ChiTietHoaDon(MaHD,MaDU,SoLuong,DonGia,ThanhTien)
-                             VALUES('{MaHD}','{MaDU}',{nmSoLuong.Value},{DonGia},{nmSoLuong.Value * Convert.ToDecimal(DonGia)}) ";
-                
-                strSQL += $@" UPDATE Ban SET TrangThai = 1 WHERE MaBan = '{btnBanDaChon.Text}'";
-                ConnectSQL.RunQuery(strSQL);
+
+                // Sử dụng transaction để đảm bảo tính toàn vẹn dữ liệu
+                List<Tuple<string, List<SqlParameter>>> commands = new List<Tuple<string, List<SqlParameter>>>();
+
+                // 1. Thêm vào bảng hóa đơn
+                string sqlHoaDon = @"INSERT INTO HoaDon(MaHD, NgayLap, MaNV, MaBan, TongTien, TrangThai)
+                                     VALUES (@MaHD, @NgayLap, @MaNV, @MaBan, 0, 0)";
+                commands.Add(new Tuple<string, List<SqlParameter>>(sqlHoaDon, new List<SqlParameter> {
+                    new SqlParameter("@MaHD", MaHD),
+                    new SqlParameter("@NgayLap", DateTime.Now.ToString("yyyy-MM-dd")),
+                    new SqlParameter("@MaNV", frmDangNhap.MaNV),
+                    new SqlParameter("@MaBan", btnBanDaChon.Text)
+                }));
+
+                // 2. Thêm vào bảng chi tiết hóa đơn
+                string sqlChiTiet = @"INSERT INTO ChiTietHoaDon(MaHD, MaDU, SoLuong, DonGia, ThanhTien)
+                                      VALUES (@MaHD, @MaDU, @SoLuong, @DonGia, @ThanhTien)";
+                commands.Add(new Tuple<string, List<SqlParameter>>(sqlChiTiet, new List<SqlParameter> {
+                    new SqlParameter("@MaHD", MaHD),
+                    new SqlParameter("@MaDU", MaDU),
+                    new SqlParameter("@SoLuong", nmSoLuong.Value),
+                    new SqlParameter("@DonGia", DonGia),
+                    new SqlParameter("@ThanhTien", nmSoLuong.Value * Convert.ToDecimal(DonGia))
+                }));
+
+                // 3. Cập nhật trạng thái bàn
+                string sqlBan = "UPDATE Ban SET TrangThai = 1 WHERE MaBan = @MaBan";
+                commands.Add(new Tuple<string, List<SqlParameter>>(sqlBan, new List<SqlParameter> { new SqlParameter("@MaBan", btnBanDaChon.Text) }));
+
+                ConnectSQL.RunTransaction(commands);
                 LoadDoUongDaGoi();
                 LoadTable();
                 MessageBox.Show("Thêm thành công");
@@ -194,20 +225,37 @@ namespace QuanLyCafe
             else
             {
                 string MaHD = dtgvHoaDon.CurrentRow.Cells[5].Value.ToString().Trim();
-                string strSQL = $@"SELECT * FROM ChiTietHoaDon WHERE MaHD = '{MaHD}' AND MaDU = '{MaDU}'";
-                if(ConnectSQL.ExcuteReader_bool(strSQL))
+                string strSQL = "SELECT * FROM ChiTietHoaDon WHERE MaHD = @MaHD AND MaDU = @MaDU";
+                List<SqlParameter> checkParams = new List<SqlParameter>
+                {
+                    new SqlParameter("@MaHD", MaHD),
+                    new SqlParameter("@MaDU", MaDU)
+                };
+
+                if (ConnectSQL.ExcuteReader_bool(strSQL, checkParams))
                 {
                     //Đã có rồi thì update số lượng
-                    strSQL = $@"UPDATE ChiTietHoaDon SET SoLuong = SoLuong + {nmSoLuong.Value}
-                                 , ThanhTien = (SoLuong + {nmSoLuong.Value}) * {DonGia} WHERE MaDU = '{MaDU}' AND MaHD = '{MaHD}'";
+                    strSQL = @"UPDATE ChiTietHoaDon SET SoLuong = SoLuong + @SoLuong, 
+                                 ThanhTien = (SoLuong + @SoLuong) * @DonGia 
+                                 WHERE MaDU = @MaDU AND MaHD = @MaHD";
+                    ConnectSQL.RunQuery(strSQL, new List<SqlParameter> {
+                        new SqlParameter("@SoLuong", nmSoLuong.Value),
+                        new SqlParameter("@DonGia", DonGia),
+                        new SqlParameter("@MaDU", MaDU),
+                        new SqlParameter("@MaHD", MaHD)
+                    });
                 }
                 else
                 {
                     //Thêm vào bảng chi tiết hóa đơn
-                    strSQL = $@" INSERT INTO ChiTietHoaDon(MaHD,MaDU,SoLuong,DonGia,ThanhTien)
-                             VALUES('{MaHD}','{MaDU}',{nmSoLuong.Value},{DonGia},{nmSoLuong.Value * Convert.ToDecimal(DonGia)}) ";
+                    strSQL = @"INSERT INTO ChiTietHoaDon(MaHD, MaDU, SoLuong, DonGia, ThanhTien)
+                               VALUES(@MaHD, @MaDU, @SoLuong, @DonGia, @ThanhTien)";
+                    ConnectSQL.RunQuery(strSQL, new List<SqlParameter> {
+                        new SqlParameter("@MaHD", MaHD), new SqlParameter("@MaDU", MaDU),
+                        new SqlParameter("@SoLuong", nmSoLuong.Value), new SqlParameter("@DonGia", DonGia),
+                        new SqlParameter("@ThanhTien", nmSoLuong.Value * Convert.ToDecimal(DonGia))
+                    });
                 }
-                ConnectSQL.RunQuery(strSQL);
                 LoadDoUongDaGoi();
                 LoadTable();
                 MessageBox.Show("Thêm thành công");
@@ -227,8 +275,13 @@ namespace QuanLyCafe
             {
                 string MaHD = dtgvHoaDon.CurrentRow.Cells["MaHD"].Value.ToString().Trim();
                 string MaDU = dtgvHoaDon.CurrentRow.Cells["MaDU"].Value.ToString().Trim();
-                string strSQL = $@"DELETE ChiTietHoaDon WHERE MaDU = '{dtgvHoaDon.CurrentRow.Cells["MaDU"].Value.ToString().Trim()}'";
-                ConnectSQL.RunQuery(strSQL);
+                string strSQL = "DELETE ChiTietHoaDon WHERE MaDU = @MaDU AND MaHD = @MaHD";
+                List<SqlParameter> parameters = new List<SqlParameter>
+                {
+                    new SqlParameter("@MaDU", MaDU),
+                    new SqlParameter("@MaHD", MaHD)
+                };
+                ConnectSQL.RunQuery(strSQL, parameters);
                 MessageBox.Show("Xóa thành công");
                 LoadDoUongDaGoi();
                 LoadTable();

@@ -1,7 +1,8 @@
-﻿using System;
+﻿﻿using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Data;
+using System.Data.SqlClient;
 using System.Drawing;
 using System.Linq;
 using System.Text;
@@ -26,8 +27,13 @@ namespace QuanLyCafe
         }
         private void LoadData()
         {
-            string strSQl = $@"SELECT MaBan,SucChua, CASE WHEN TrangThai = 0 THEN N'Bàn trống' ELSE N'Bàn có người' END AS TrangThai FROM Ban WHERE MaBan LIKE N'%{txtSearch.Text}%'";
-            dtgvData.DataSource = ConnectSQL.Load(strSQl);
+            string strSQl = @"SELECT MaBan, SucChua, CASE WHEN TrangThai = 0 THEN N'Bàn trống' ELSE N'Bàn có người' END AS TrangThai 
+                              FROM Ban WHERE MaBan LIKE @MaBan";
+            List<SqlParameter> parameters = new List<SqlParameter>
+            {
+                new SqlParameter("@MaBan", "%" + txtSearch.Text + "%")
+            };
+            dtgvData.DataSource = ConnectSQL.Load(strSQl, parameters);
             frmNhanVien.SetupDataGridView(dtgvData);
             dtgvData.Columns[0].HeaderText = "Mã bàn";
             dtgvData.Columns[1].HeaderText = "Sức chứa";
@@ -63,16 +69,23 @@ namespace QuanLyCafe
                 txtSucChua.Focus();
                 return;
             }
-            string strSQL = $@"SELECT * FROM Ban WHERE MaBan = '{txtMaBan.Text}'";
-            if (ConnectSQL.ExcuteReader_bool(strSQL))
+            string strSQL = "SELECT * FROM Ban WHERE MaBan = @MaBan";
+            List<SqlParameter> checkParams = new List<SqlParameter> { new SqlParameter("@MaBan", txtMaBan.Text) };
+            if (ConnectSQL.ExcuteReader_bool(strSQL, checkParams))
             {
                 MessageBox.Show("Mã bàn này đã tồn tại, vui lòng tạo mã khác");
                 txtMaBan.Focus();
                 return;
             }
-            strSQL = $@"INSERT INTO Ban(MaBan,SucChua,TrangThai)
-                        VALUES ('{txtMaBan.Text}',{txtSucChua.Text},'0')"; //0 : Bàn trống, 1: Bàn có người
-            ConnectSQL.RunQuery(strSQL);
+            strSQL = @"INSERT INTO Ban(MaBan, SucChua, TrangThai)
+                       VALUES (@MaBan, @SucChua, '0')"; //0 : Bàn trống, 1: Bàn có người
+            List<SqlParameter> insertParams = new List<SqlParameter>
+            {
+                new SqlParameter("@MaBan", txtMaBan.Text),
+                new SqlParameter("@SucChua", txtSucChua.Text)
+            };
+
+            ConnectSQL.RunQuery(strSQL, insertParams);
             MessageBox.Show("Thêm thành công");
             LoadData();
         }
@@ -96,18 +109,26 @@ namespace QuanLyCafe
                 txtSucChua.Focus();
                 return;
             }
-            string strSQL = $@"SELECT * FROM Ban WHERE MaBan = '{txtMaBan.Text}'";
             string MaBanSua = dtgvData.CurrentRow.Cells[0].Value.ToString().Trim();
-            if (ConnectSQL.ExcuteReader_bool(strSQL) && txtMaBan.Text.Trim() != MaBanSua)
+            if (txtMaBan.Text.Trim() != MaBanSua)
             {
-                MessageBox.Show("Mã bàn này đã tồn tại, vui lòng tạo mã khác");
-                txtMaBan.Focus();
-                return;
+                string strSQLCheck = "SELECT * FROM Ban WHERE MaBan = @MaBan";
+                List<SqlParameter> checkParams = new List<SqlParameter> { new SqlParameter("@MaBan", txtMaBan.Text.Trim()) };
+                if (ConnectSQL.ExcuteReader_bool(strSQLCheck, checkParams))
+                {
+                    MessageBox.Show("Mã bàn này đã tồn tại, vui lòng tạo mã khác");
+                    txtMaBan.Focus();
+                    return;
+                }
             }
-            strSQL = $@"UPDATE Ban SET MaBan = '{txtMaBan.Text}'
-                        ,SucChua = {txtSucChua.Text}
-                        WHERE MaBan = '{MaBanSua}'";
-            ConnectSQL.RunQuery(strSQL);
+            string strSQL = @"UPDATE Ban SET MaBan = @MaBan, SucChua = @SucChua WHERE MaBan = @MaBanSua";
+            List<SqlParameter> updateParams = new List<SqlParameter>
+            {
+                new SqlParameter("@MaBan", txtMaBan.Text),
+                new SqlParameter("@SucChua", txtSucChua.Text),
+                new SqlParameter("@MaBanSua", MaBanSua)
+            };
+            ConnectSQL.RunQuery(strSQL, updateParams);
             MessageBox.Show("Sửa thành công");
             LoadData();
         }
@@ -119,8 +140,9 @@ namespace QuanLyCafe
                 MessageBox.Show("Chưa có dữ liệu để xóa");
                 return;
             }
-            string strCheck = $@"SELECT * FROM HoaDon WHERE MaBan = '{dtgvData.CurrentRow.Cells["MaBan"].Value.ToString().Trim()}'";
-            if (ConnectSQL.ExcuteReader_bool(strCheck))
+            string strCheck = "SELECT * FROM HoaDon WHERE MaBan = @MaBan";
+            List<SqlParameter> checkParams = new List<SqlParameter> { new SqlParameter("@MaBan", dtgvData.CurrentRow.Cells["MaBan"].Value.ToString().Trim()) };
+            if (ConnectSQL.ExcuteReader_bool(strCheck, checkParams))
             {
                 MessageBox.Show("Dữ liệu đã phát sinh khóa ngoại trong bảng HoaDon, không xóa được");
                 return;
@@ -129,8 +151,9 @@ namespace QuanLyCafe
 
             if (result == DialogResult.Yes)
             {
-                string strSQL = $@"DELETE Ban WHERE MaBan = '{dtgvData.CurrentRow.Cells[0].Value.ToString().Trim()}'";
-                ConnectSQL.RunQuery(strSQL);
+                string strSQL = "DELETE Ban WHERE MaBan = @MaBan";
+                List<SqlParameter> deleteParams = new List<SqlParameter> { new SqlParameter("@MaBan", dtgvData.CurrentRow.Cells[0].Value.ToString().Trim()) };
+                ConnectSQL.RunQuery(strSQL, deleteParams);
                 MessageBox.Show("Xóa thành công");
                 LoadData();
             }

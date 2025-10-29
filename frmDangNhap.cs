@@ -1,7 +1,8 @@
-﻿using System;
+﻿﻿using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Data;
+using System.Data.SqlClient;
 using System.Drawing;
 using System.Linq;
 using System.Text;
@@ -33,8 +34,14 @@ namespace QuanLyCafe
                 txtMaDangNhap.Focus();
                 return;
             }
-            string strSQL = $@"SELECT * FROM NhanVien WHERE MaNV = '{txtMaDangNhap.Text}' AND MatKhau = '{txtMatKhau.Text}'";
-            DataTable dt = ConnectSQL.Load(strSQL);
+            string strSQL = "SELECT * FROM NhanVien WHERE MaNV = @MaNV AND MatKhau = @MatKhau";
+            List<SqlParameter> parameters = new List<SqlParameter>
+            {
+                new SqlParameter("@MaNV", txtMaDangNhap.Text),
+                new SqlParameter("@MatKhau", txtMatKhau.Text)
+            };
+
+            DataTable dt = ConnectSQL.Load(strSQL, parameters);
             if (dt.Rows.Count > 0)
             {
                 MaNV = txtMaDangNhap.Text;

@@ -1,7 +1,8 @@
-﻿using System;
+﻿﻿using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Data;
+using System.Data.SqlClient;
 using System.Drawing;
 using System.Linq;
 using System.Text;
@@ -18,12 +19,17 @@ namespace QuanLyCafe
         }
         private void LoadData()
         {
-            string strSQl = $@"SELECT NgayLap,SUM(TongTien) AS TongTien FROM HoaDon 
-                                WHERE NgayLap BETWEEN '{dtDFrom.Value.ToString("yyyyMMdd")}'
-                                              AND '{dtDTo.Value.ToString("yyyyMMdd")}'
+            string strSQl = @"SELECT NgayLap, SUM(TongTien) AS TongTien FROM HoaDon 
+                                WHERE TrangThai = 1 AND NgayLap BETWEEN @FromDate AND @ToDate
                                 GROUP BY NgayLap";
+            List<SqlParameter> parameters = new List<SqlParameter>
+            {
+                new SqlParameter("@FromDate", dtDFrom.Value.ToString("yyyy-MM-dd")),
+                new SqlParameter("@ToDate", dtDTo.Value.ToString("yyyy-MM-dd"))
+            };
+
             DataTable dt = new DataTable();
-            dt = ConnectSQL.Load(strSQl);
+            dt = ConnectSQL.Load(strSQl, parameters);
             dtgvData.DataSource = dt;
             frmNhanVien.SetupDataGridView(dtgvData);
             dtgvData.Columns[0].HeaderText = "Ngày lập";
@@ -34,12 +40,8 @@ namespace QuanLyCafe
             }
             else
             {
-                decimal total = 0;
-                for (int i = 0; i < dt.Rows.Count; i++)
-                {
-                    total += decimal.Parse(dt.Rows[i]["TongTien"].ToString());
-                }
-                lblTongTien.Text = total.ToString("N0");
+                object total = dt.Compute("SUM(TongTien)", string.Empty);
+                lblTongTien.Text = Convert.ToDecimal(total).ToString("N0") + " VNĐ";
             }
         }
         private void frmDoanhThuTheoNgay_Load(object sender, EventArgs e)

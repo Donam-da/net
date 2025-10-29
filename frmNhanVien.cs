@@ -1,7 +1,8 @@
-﻿using System;
+﻿﻿using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Data;
+using System.Data.SqlClient;
 using System.Drawing;
 using System.Linq;
 using System.Text;
@@ -32,8 +33,13 @@ namespace QuanLyCafe
         }
         private void LoadData()
         {
-            string strSQl = $@"SELECT * FROM NhanVien WHERE TenNV LIKE N'%{txtSearch.Text}%'";
-            dtgvData.DataSource = ConnectSQL.Load(strSQl);
+            string strSQl = "SELECT * FROM NhanVien WHERE TenNV LIKE @TenNV";
+            List<SqlParameter> parameters = new List<SqlParameter>
+            {
+                new SqlParameter("@TenNV", "%" + txtSearch.Text + "%")
+            };
+
+            dtgvData.DataSource = ConnectSQL.Load(strSQl, parameters);
             SetupDataGridView(dtgvData);
             dtgvData.Columns[0].HeaderText = "Mã người dùng";
             dtgvData.Columns[1].HeaderText = "Tên người dùng";
@@ -97,16 +103,28 @@ namespace QuanLyCafe
                 txtMaNV.Focus();
                 return;
             }
-            string strSQL = $@"SELECT * FROM NhanVien WHERE MaNV = '{txtMaNV.Text}'";
-            if (ConnectSQL.ExcuteReader_bool(strSQL))
+            string strSQL = "SELECT * FROM NhanVien WHERE MaNV = @MaNV";
+            List<SqlParameter> checkParams = new List<SqlParameter> { new SqlParameter("@MaNV", txtMaNV.Text) };
+            if (ConnectSQL.ExcuteReader_bool(strSQL, checkParams))
             {
                 MessageBox.Show("Mã nhân viên này đã tồn tại, vui lòng tạo mã khác");
                 txtMaNV.Focus();
                 return;
             }
-            strSQL = $@"INSERT INTO NhanVien(MaNV,TenNV,MatKhau,SDT,DiaChi,Quyen)
-                        VALUES ('{txtMaNV.Text}',N'{txtTenNV.Text}',N'{txtMatKhau.Text}','{txtSDT.Text}',N'{txtDiaChi.Text}',N'{cboQuyen.Text}')";
-            ConnectSQL.RunQuery(strSQL);
+
+            strSQL = @"INSERT INTO NhanVien(MaNV,TenNV,MatKhau,SDT,DiaChi,Quyen)
+                        VALUES (@MaNV, @TenNV, @MatKhau, @SDT, @DiaChi, @Quyen)";
+            List<SqlParameter> insertParams = new List<SqlParameter>
+            {
+                new SqlParameter("@MaNV", txtMaNV.Text),
+                new SqlParameter("@TenNV", txtTenNV.Text),
+                new SqlParameter("@MatKhau", txtMatKhau.Text),
+                new SqlParameter("@SDT", txtSDT.Text),
+                new SqlParameter("@DiaChi", txtDiaChi.Text),
+                new SqlParameter("@Quyen", cboQuyen.Text)
+            };
+
+            ConnectSQL.RunQuery(strSQL, insertParams);
             MessageBox.Show("Thêm thành công");
             LoadData();
         }
@@ -154,19 +172,32 @@ namespace QuanLyCafe
                 txtMaNV.Focus();
                 return;
             }
-            string strSQL = $@"SELECT * FROM NhanVien WHERE MaNV = '{txtMaNV.Text}'";
+
             string MaNVSua = dtgvData.CurrentRow.Cells[0].Value.ToString().Trim();
-            if (ConnectSQL.ExcuteReader_bool(strSQL) && txtMaNV.Text.Trim() != MaNVSua)
+            if (txtMaNV.Text.Trim() != MaNVSua)
             {
-                MessageBox.Show("Mã nhân viên này đã tồn tại, vui lòng tạo mã khác");
-                txtMaNV.Focus();
-                return;
+                string strSQLCheck = "SELECT * FROM NhanVien WHERE MaNV = @MaNV";
+                List<SqlParameter> checkParams = new List<SqlParameter> { new SqlParameter("@MaNV", txtMaNV.Text.Trim()) };
+                if (ConnectSQL.ExcuteReader_bool(strSQLCheck, checkParams))
+                {
+                    MessageBox.Show("Mã nhân viên này đã tồn tại, vui lòng tạo mã khác");
+                    txtMaNV.Focus();
+                    return;
+                }
             }
-            strSQL = $@"UPDATE NhanVien SET MaNV = '{txtMaNV.Text}'
-                        ,TenNV = N'{txtTenNV.Text}' ,MatKhau = N'{txtMatKhau.Text}',SDT = '{txtSDT.Text}',DiaChi = N'{txtDiaChi.Text}'
-                        ,Quyen = N'{cboQuyen.Text}'
-                        WHERE MaNV = '{MaNVSua}'";
-            ConnectSQL.RunQuery(strSQL);
+
+            string strSQL = @"UPDATE NhanVien SET MaNV = @MaNV, TenNV = @TenNV, MatKhau = @MatKhau, SDT = @SDT, DiaChi = @DiaChi, Quyen = @Quyen
+                              WHERE MaNV = @MaNVSua";
+            List<SqlParameter> updateParams = new List<SqlParameter> {
+                new SqlParameter("@MaNV", txtMaNV.Text),
+                new SqlParameter("@TenNV", txtTenNV.Text),
+                new SqlParameter("@MatKhau", txtMatKhau.Text),
+                new SqlParameter("@SDT", txtSDT.Text),
+                new SqlParameter("@DiaChi", txtDiaChi.Text),
+                new SqlParameter("@Quyen", cboQuyen.Text),
+                new SqlParameter("@MaNVSua", MaNVSua)
+            };
+            ConnectSQL.RunQuery(strSQL, updateParams);
             MessageBox.Show("Sửa thành công");
             LoadData();
         }
@@ -196,8 +227,9 @@ namespace QuanLyCafe
 
             if (result == DialogResult.Yes)
             {
-                string strSQL = $@"DELETE NhanVien WHERE MaNV = '{dtgvData.CurrentRow.Cells[0].Value.ToString().Trim()}'";
-                ConnectSQL.RunQuery(strSQL);
+                string strSQL = "DELETE NhanVien WHERE MaNV = @MaNV";
+                List<SqlParameter> parameters = new List<SqlParameter> { new SqlParameter("@MaNV", dtgvData.CurrentRow.Cells[0].Value.ToString().Trim()) };
+                ConnectSQL.RunQuery(strSQL, parameters);
                 MessageBox.Show("Xóa thành công");
                 LoadData();
             }

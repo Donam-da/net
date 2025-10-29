@@ -107,8 +107,8 @@
             this.label6.Location = new System.Drawing.Point(235, 423);
             this.label6.Name = "label6";
             this.label6.Size = new System.Drawing.Size(113, 16);
-            this.label6.TabIndex = 35;
-            this.label6.Text = "Tìm kiếm theo mã";
+            this.label6.TabIndex = 35; // The original text was "Tìm kiếm theo mã"
+            this.label6.Text = "Tìm kiếm theo mã bàn";
             // 
             // dtgvData
             // 

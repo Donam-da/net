@@ -1,4 +1,4 @@
-﻿using System;
+﻿﻿using System;
 using System.Collections.Generic;
 using System.Data.SqlClient;
 using System.Data;
@@ -34,51 +34,167 @@ namespace QuanLyCafe
         //Hàm chạy lệnh Sql lấy dữ liệu Data Query
         public static DataTable Load(string sql)
         {
-            OpenConnection();
-            SqlCommand cmd = cnn.CreateCommand();
-            cmd.CommandText = sql;
-            SqlDataAdapter da = new SqlDataAdapter(cmd);
             DataTable dt = new DataTable();
-            da.Fill(dt);
+            using (SqlConnection conn = GetConnection())
+            {
+                conn.Open();
+                using (SqlCommand cmd = new SqlCommand(sql, conn))
+                {
+                    using (SqlDataAdapter da = new SqlDataAdapter(cmd))
+                    {
+                        da.Fill(dt);
+                    }
+                }
+            }
+            return dt;
+        }
+
+        // Overload mới cho phương thức Load để chấp nhận tham số
+        public static DataTable Load(string sql, List<SqlParameter> parameters)
+        {
+            DataTable dt = new DataTable();
+            using (SqlConnection conn = GetConnection())
+            {
+                conn.Open();
+                using (SqlCommand cmd = new SqlCommand(sql, conn))
+                {
+                    if (parameters != null)
+                    {
+                        cmd.Parameters.AddRange(parameters.ToArray());
+                    }
+                    using (SqlDataAdapter da = new SqlDataAdapter(cmd))
+                    {
+                        da.Fill(dt);
+                    }
+                }
+            }
             return dt;
         }
 
         //Hàm chạy lệnh Sql thêm, xóa, sửa Non Query
         public static string RunQuery(string sql)
         {
-            OpenConnection();
-            SqlCommand cmd = cnn.CreateCommand();
-            cmd.CommandText = sql;
-            cmd.ExecuteNonQuery();
-            CloseConnection();
+            using (SqlConnection conn = GetConnection())
+            {
+                conn.Open();
+                using (SqlCommand cmd = new SqlCommand(sql, conn))
+                {
+                    cmd.ExecuteNonQuery();
+                }
+            }
             return "Success";
         }
+
+        // Overload mới cho RunQuery để chấp nhận tham số
+        public static string RunQuery(string sql, List<SqlParameter> parameters)
+        {
+            using (SqlConnection conn = GetConnection())
+            {
+                conn.Open();
+                using (SqlCommand cmd = new SqlCommand(sql, conn))
+                {
+                    if (parameters != null)
+                    {
+                        cmd.Parameters.AddRange(parameters.ToArray());
+                    }
+                    cmd.ExecuteNonQuery();
+                }
+            }
+            return "Success";
+        }
+
         //Phương thức kiểm tra sự tồn tại của dữ liệu
         public static bool ExcuteReader_bool(string sql)
         {
-            OpenConnection();
-            SqlCommand cmd = cnn.CreateCommand();
-            cmd.CommandText = sql;
-            SqlDataReader dr = cmd.ExecuteReader();
-            if (dr.Read())
+            using (SqlConnection conn = GetConnection())
             {
-                dr.Close();
-                return true;
-            }
-            else
-            {
-                dr.Close();
-                return false;
+                conn.Open();
+                using (SqlCommand cmd = new SqlCommand(sql, conn))
+                {
+                    using (SqlDataReader dr = cmd.ExecuteReader())
+                    {
+                        return dr.Read();
+                    }
+                }
             }
         }
 
+        // Overload mới cho ExcuteReader_bool để chấp nhận tham số
+        public static bool ExcuteReader_bool(string sql, List<SqlParameter> parameters)
+        {
+            using (SqlConnection conn = GetConnection())
+            {
+                conn.Open();
+                using (SqlCommand cmd = new SqlCommand(sql, conn))
+                {
+                    if (parameters != null)
+                    {
+                        cmd.Parameters.AddRange(parameters.ToArray());
+                    }
+                    using (SqlDataReader dr = cmd.ExecuteReader())
+                    {
+                        return dr.Read();
+                    }
+                }
+            }
+        }
         //Phương thức trả về 1 giá trị nào đó mà ta tìm
         public static string ExecuteScalar_string(string sql)
         {
-            OpenConnection();
-            SqlCommand cmd = cnn.CreateCommand();
-            cmd.CommandText = sql;
-            return cmd.ExecuteScalar().ToString();
+            using (SqlConnection conn = GetConnection())
+            {
+                conn.Open();
+                using (SqlCommand cmd = new SqlCommand(sql, conn))
+                {
+                    object result = cmd.ExecuteScalar();
+                    return result?.ToString();
+                }
+            }
+        }
+
+        // Overload mới cho ExecuteScalar_string để chấp nhận tham số
+        public static string ExecuteScalar_string(string sql, List<SqlParameter> parameters)
+        {
+            using (SqlConnection conn = GetConnection())
+            {
+                conn.Open();
+                using (SqlCommand cmd = new SqlCommand(sql, conn))
+                {
+                    if (parameters != null)
+                    {
+                        cmd.Parameters.AddRange(parameters.ToArray());
+                    }
+                    object result = cmd.ExecuteScalar();
+                    return result?.ToString();
+                }
+            }
+        }
+
+        // Phương thức chạy nhiều lệnh trong một transaction
+        public static void RunTransaction(List<Tuple<string, List<SqlParameter>>> commands)
+        {
+            using (SqlConnection conn = GetConnection())
+            {
+                conn.Open();
+                SqlTransaction transaction = conn.BeginTransaction();
+                try
+                {
+                    foreach (var commandInfo in commands)
+                    {
+                        using (SqlCommand cmd = new SqlCommand(commandInfo.Item1, conn, transaction))
+                        {
+                            cmd.Parameters.AddRange(commandInfo.Item2.ToArray());
+                            cmd.ExecuteNonQuery();
+                        }
+                    }
+                    transaction.Commit();
+                }
+                catch (Exception)
+                {
+                    transaction.Rollback();
+                    throw; // Ném lại ngoại lệ để lớp gọi có thể xử lý
+                }
+            }
         }
     }
 }

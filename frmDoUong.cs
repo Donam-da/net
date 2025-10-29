@@ -1,7 +1,8 @@
-﻿using System;
+﻿﻿using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Data;
+using System.Data.SqlClient;
 using System.Drawing;
 using System.IO;
 using System.Linq;
@@ -27,8 +28,13 @@ namespace QuanLyCafe
         }
         private void LoadData()
         {
-            string strSQl = $@"SELECT MaDU,TenDU,MaLoai,DonGia FROM DoUong WHERE TenDU LIKE N'%{txtSearch.Text}%'";
-            dtgvData.DataSource = ConnectSQL.Load(strSQl);
+            string strSQl = "SELECT MaDU, TenDU, MaLoai, DonGia FROM DoUong WHERE TenDU LIKE @TenDU";
+            List<SqlParameter> parameters = new List<SqlParameter>
+            {
+                new SqlParameter("@TenDU", "%" + txtSearch.Text + "%")
+            };
+
+            dtgvData.DataSource = ConnectSQL.Load(strSQl, parameters);
             frmNhanVien.SetupDataGridView(dtgvData);
             dtgvData.Columns[0].HeaderText = "Mã đồ uống";
             dtgvData.Columns[1].HeaderText = "Tên đồ uống";
@@ -48,8 +54,13 @@ namespace QuanLyCafe
                 txtTenDU.Text = drow.Cells[1].Value.ToString();
                 cboMaLoai.SelectedValue = drow.Cells[2].Value.ToString();
                 txtDonGia.Text = drow.Cells[3].Value.ToString();
-                string strSQL = $@"SELECT HinhAnh FROM DoUong WHERE MaDU = '{txtMaDU.Text}'";
-                string result = ConnectSQL.ExecuteScalar_string(strSQL);
+
+                string strSQLImage = "SELECT HinhAnh FROM DoUong WHERE MaDU = @MaDU";
+                List<SqlParameter> imageParams = new List<SqlParameter>
+                {
+                    new SqlParameter("@MaDU", txtMaDU.Text)
+                };
+                string result = ConnectSQL.ExecuteScalar_string(strSQLImage, imageParams);
                 if (!string.IsNullOrEmpty(result))
                 {
                     picHinhAnh.Image = Base64ToImage(result);
@@ -101,16 +112,25 @@ namespace QuanLyCafe
                 cboMaLoai.Focus();
                 return;
             }
-            string strSQL = $@"SELECT * FROM DoUong WHERE MaDU = '{txtMaDU.Text}'";
-            if (ConnectSQL.ExcuteReader_bool(strSQL))
+            string strSQL = "SELECT * FROM DoUong WHERE MaDU = @MaDU";
+            List<SqlParameter> checkParams = new List<SqlParameter> { new SqlParameter("@MaDU", txtMaDU.Text) };
+            if (ConnectSQL.ExcuteReader_bool(strSQL, checkParams))
             {
                 MessageBox.Show("Mã đồ uống này đã tồn tại, vui lòng tạo mã khác");
                 txtMaDU.Focus();
                 return;
             }
-            strSQL = $@"INSERT INTO DoUong(MaDU,TenDU,MaLoai,DonGia)
-                        VALUES ('{txtMaDU.Text}',N'{txtTenDU.Text}','{cboMaLoai.SelectedValue}',{txtDonGia.Text})";
-            ConnectSQL.RunQuery(strSQL);
+            strSQL = @"INSERT INTO DoUong(MaDU, TenDU, MaLoai, DonGia)
+                       VALUES (@MaDU, @TenDU, @MaLoai, @DonGia)";
+            List<SqlParameter> insertParams = new List<SqlParameter>
+            {
+                new SqlParameter("@MaDU", txtMaDU.Text),
+                new SqlParameter("@TenDU", txtTenDU.Text),
+                new SqlParameter("@MaLoai", cboMaLoai.SelectedValue),
+                new SqlParameter("@DonGia", txtDonGia.Text)
+            };
+
+            ConnectSQL.RunQuery(strSQL, insertParams);
             MessageBox.Show("Thêm thành công");
             LoadData();
         }
@@ -146,18 +166,28 @@ namespace QuanLyCafe
                 cboMaLoai.Focus();
                 return;
             }
-            string strSQL = $@"SELECT * FROM DoUong WHERE MaDU = '{txtMaDU.Text}'";
             string MaDUSua = dtgvData.CurrentRow.Cells[0].Value.ToString().Trim();
-            if (ConnectSQL.ExcuteReader_bool(strSQL) && txtMaDU.Text.Trim() != MaDUSua)
+            if (txtMaDU.Text.Trim() != MaDUSua)
             {
-                MessageBox.Show("Mã đồ uống này đã tồn tại, vui lòng tạo mã khác");
-                txtMaDU.Focus();
-                return;
+                string strSQLCheck = "SELECT * FROM DoUong WHERE MaDU = @MaDU";
+                List<SqlParameter> checkParams = new List<SqlParameter> { new SqlParameter("@MaDU", txtMaDU.Text.Trim()) };
+                if (ConnectSQL.ExcuteReader_bool(strSQLCheck, checkParams))
+                {
+                    MessageBox.Show("Mã đồ uống này đã tồn tại, vui lòng tạo mã khác");
+                    txtMaDU.Focus();
+                    return;
+                }
             }
-            strSQL = $@"UPDATE DoUong SET MaDU = '{txtMaDU.Text}'
-                        ,TenDU = N'{txtTenDU.Text}',MaLoai = '{cboMaLoai.SelectedValue}',DonGia = {txtDonGia.Text}
-                        WHERE MaDU = '{MaDUSua}'";
-            ConnectSQL.RunQuery(strSQL);
+            string strSQL = @"UPDATE DoUong SET MaDU = @MaDU, TenDU = @TenDU, MaLoai = @MaLoai, DonGia = @DonGia
+                              WHERE MaDU = @MaDUSua";
+            List<SqlParameter> updateParams = new List<SqlParameter> {
+                new SqlParameter("@MaDU", txtMaDU.Text),
+                new SqlParameter("@TenDU", txtTenDU.Text),
+                new SqlParameter("@MaLoai", cboMaLoai.SelectedValue),
+                new SqlParameter("@DonGia", txtDonGia.Text),
+                new SqlParameter("@MaDUSua", MaDUSua)
+            };
+            ConnectSQL.RunQuery(strSQL, updateParams);
             MessageBox.Show("Sửa thành công");
             LoadData();
         }
@@ -172,8 +202,13 @@ namespace QuanLyCafe
                 cboMaLoai.SelectedValue = row.Cells["MaLoai"].Value.ToString();
                 txtDonGia.Text = row.Cells["DonGia"].Value.ToString();
 
-                string strSQL = $@"SELECT HinhAnh FROM DoUong WHERE MaDU = '{txtMaDU.Text}'";
-                string result = ConnectSQL.ExecuteScalar_string(strSQL);
+                string strSQL = "SELECT HinhAnh FROM DoUong WHERE MaDU = @MaDU";
+                List<SqlParameter> parameters = new List<SqlParameter>
+                {
+                    new SqlParameter("@MaDU", txtMaDU.Text)
+                };
+
+                string result = ConnectSQL.ExecuteScalar_string(strSQL, parameters);
                 if (!string.IsNullOrEmpty(result))
                 {
                     picHinhAnh.Image = Base64ToImage(result);
@@ -206,8 +241,12 @@ namespace QuanLyCafe
             DialogResult result = MessageBox.Show("Bạn có chắc chắn xóa?", "Xác nhận", MessageBoxButtons.YesNo, MessageBoxIcon.Question);
             if (result == DialogResult.Yes)
             {
-                string strSQL = $@"DELETE DoUong WHERE MaDU = '{dtgvData.CurrentRow.Cells[0].Value.ToString().Trim()}'";
-                ConnectSQL.RunQuery(strSQL);
+                string strSQL = "DELETE DoUong WHERE MaDU = @MaDU";
+                List<SqlParameter> parameters = new List<SqlParameter>
+                {
+                    new SqlParameter("@MaDU", dtgvData.CurrentRow.Cells[0].Value.ToString().Trim())
+                };
+                ConnectSQL.RunQuery(strSQL, parameters);
                 MessageBox.Show("Xóa thành công");
                 LoadData();
             }
@@ -249,9 +288,14 @@ namespace QuanLyCafe
                         //convert hình sang base64
                         string base64String = ConvertImageToBase64(picHinhAnh.Image);
                         //Tiến hình cập nhật vào SQL
-                        string strSQL = $@"UPDATE DoUong SET HinhAnh = '{base64String}' 
-                                            WHERE MaDU = '{dtgvData.CurrentRow.Cells[0].Value.ToString().Trim()}'";
-                        ConnectSQL.RunQuery(strSQL);
+                        string strSQL = "UPDATE DoUong SET HinhAnh = @HinhAnh WHERE MaDU = @MaDU";
+                        List<SqlParameter> parameters = new List<SqlParameter>
+                        {
+                            new SqlParameter("@HinhAnh", base64String),
+                            new SqlParameter("@MaDU", dtgvData.CurrentRow.Cells[0].Value.ToString().Trim())
+                        };
+
+                        ConnectSQL.RunQuery(strSQL, parameters);
                         MessageBox.Show("Thêm hình thành công");
                         LoadData();
                     }
@@ -284,8 +328,12 @@ namespace QuanLyCafe
 
             if (result == DialogResult.Yes)
             {
-                string strSQL = $@"UPDATE DoUong SET HinhAnh = NULL WHERE MaDU = '{dtgvData.CurrentRow.Cells[0].Value.ToString().Trim()}'";
-                ConnectSQL.RunQuery(strSQL);
+                string strSQL = "UPDATE DoUong SET HinhAnh = NULL WHERE MaDU = @MaDU";
+                List<SqlParameter> parameters = new List<SqlParameter>
+                {
+                    new SqlParameter("@MaDU", dtgvData.CurrentRow.Cells[0].Value.ToString().Trim())
+                };
+                ConnectSQL.RunQuery(strSQL, parameters);
                 picHinhAnh.Image = null;
                 MessageBox.Show("Xóa thành công");
                 LoadData();

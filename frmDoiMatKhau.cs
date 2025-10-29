@@ -1,7 +1,8 @@
-﻿using System;
+﻿﻿using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Data;
+using System.Data.SqlClient;
 using System.Drawing;
 using System.Linq;
 using System.Text;
@@ -45,8 +46,14 @@ namespace QuanLyCafe
                 txtXacNhanMatKhau.Focus();
                 return;
             }
-            string strSQL = $@"UPDATE NhanVien SET MatKhau = '{txtMatKhauMoi.Text}' WHERE MaNV = '{frmDangNhap.MaNV}'";
-            ConnectSQL.RunQuery(strSQL);
+            string strSQL = "UPDATE NhanVien SET MatKhau = @MatKhauMoi WHERE MaNV = @MaNV";
+            List<SqlParameter> parameters = new List<SqlParameter>
+            {
+                new SqlParameter("@MatKhauMoi", txtMatKhauMoi.Text),
+                new SqlParameter("@MaNV", frmDangNhap.MaNV)
+            };
+
+            ConnectSQL.RunQuery(strSQL, parameters);
             MessageBox.Show("Đổi mật khẩu thành công");
             this.Close();
         }

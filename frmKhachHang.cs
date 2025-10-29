@@ -1,7 +1,8 @@
-﻿using System;
+﻿﻿using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Data;
+using System.Data.SqlClient;
 using System.Drawing;
 using System.Linq;
 using System.Text;
@@ -18,8 +19,13 @@ namespace QuanLyCafe
         }
         private void LoadData()
         {
-            string strSQl = $@"SELECT * FROM KhachHang WHERE TenKH LIKE N'%{txtSearch.Text}%'";
-            dtgvData.DataSource = ConnectSQL.Load(strSQl);
+            string strSQl = "SELECT * FROM KhachHang WHERE TenKH LIKE @TenKH";
+            List<SqlParameter> parameters = new List<SqlParameter>
+            {
+                new SqlParameter("@TenKH", "%" + txtSearch.Text + "%")
+            };
+
+            dtgvData.DataSource = ConnectSQL.Load(strSQl, parameters);
             frmNhanVien.SetupDataGridView(dtgvData);
             dtgvData.Columns[0].HeaderText = "Mã KH";
             dtgvData.Columns[1].HeaderText = "Tên KH";
@@ -61,16 +67,24 @@ namespace QuanLyCafe
                 txtTenKH.Focus();
                 return;
             }
-            string strSQL = $@"SELECT * FROM KhachHang WHERE MaKH = '{txtMaKH.Text}'";
-            if (ConnectSQL.ExcuteReader_bool(strSQL))
+            string strSQL = "SELECT * FROM KhachHang WHERE MaKH = @MaKH";
+            List<SqlParameter> checkParams = new List<SqlParameter> { new SqlParameter("@MaKH", txtMaKH.Text) };
+            if (ConnectSQL.ExcuteReader_bool(strSQL, checkParams))
             {
                 MessageBox.Show("Mã khách hàng này đã tồn tại, vui lòng tạo mã khác");
                 txtMaKH.Focus();
                 return;
             }
-            strSQL = $@"INSERT INTO KhachHang(MaKH,TenKH,SDT,DiaChi)
-                        VALUES ('{txtMaKH.Text}',N'{txtTenKH.Text}','{txtSDT.Text}',N'{txtDiaChi.Text}')";
-            ConnectSQL.RunQuery(strSQL);
+            strSQL = @"INSERT INTO KhachHang(MaKH, TenKH, SDT, DiaChi)
+                       VALUES (@MaKH, @TenKH, @SDT, @DiaChi)";
+            List<SqlParameter> insertParams = new List<SqlParameter>
+            {
+                new SqlParameter("@MaKH", txtMaKH.Text),
+                new SqlParameter("@TenKH", txtTenKH.Text),
+                new SqlParameter("@SDT", txtSDT.Text),
+                new SqlParameter("@DiaChi", txtDiaChi.Text)
+            };
+            ConnectSQL.RunQuery(strSQL, insertParams);
             MessageBox.Show("Thêm thành công");
             LoadData();
         }
@@ -94,18 +108,28 @@ namespace QuanLyCafe
                 txtTenKH.Focus();
                 return;
             }
-            string strSQL = $@"SELECT * FROM KhachHang WHERE MaKH = '{txtMaKH.Text}'";
             string MaKHSua = dtgvData.CurrentRow.Cells[0].Value.ToString().Trim();
-            if (ConnectSQL.ExcuteReader_bool(strSQL) && txtMaKH.Text.Trim() != MaKHSua)
+            if (txtMaKH.Text.Trim() != MaKHSua)
             {
-                MessageBox.Show("Mã khách hàng này đã tồn tại, vui lòng tạo mã khác");
-                txtMaKH.Focus();
-                return;
+                string strSQLCheck = "SELECT * FROM KhachHang WHERE MaKH = @MaKH";
+                List<SqlParameter> checkParams = new List<SqlParameter> { new SqlParameter("@MaKH", txtMaKH.Text.Trim()) };
+                if (ConnectSQL.ExcuteReader_bool(strSQLCheck, checkParams))
+                {
+                    MessageBox.Show("Mã khách hàng này đã tồn tại, vui lòng tạo mã khác");
+                    txtMaKH.Focus();
+                    return;
+                }
             }
-            strSQL = $@"UPDATE KhachHang SET MaKH = '{txtMaKH.Text}'
-                        ,TenKh = N'{txtTenKH.Text}',SDT = '{txtSDT.Text}',DiaChi = N'{txtDiaChi.Text}'
-                        WHERE MaKH = '{MaKHSua}'";
-            ConnectSQL.RunQuery(strSQL);
+            string strSQL = @"UPDATE KhachHang SET MaKH = @MaKH, TenKh = @TenKH, SDT = @SDT, DiaChi = @DiaChi
+                              WHERE MaKH = @MaKHSua";
+            List<SqlParameter> updateParams = new List<SqlParameter> {
+                new SqlParameter("@MaKH", txtMaKH.Text),
+                new SqlParameter("@TenKH", txtTenKH.Text),
+                new SqlParameter("@SDT", txtSDT.Text),
+                new SqlParameter("@DiaChi", txtDiaChi.Text),
+                new SqlParameter("@MaKHSua", MaKHSua)
+            };
+            ConnectSQL.RunQuery(strSQL, updateParams);
             MessageBox.Show("Sửa thành công");
             LoadData();
         }
@@ -121,8 +145,9 @@ namespace QuanLyCafe
 
             if (result == DialogResult.Yes)
             {
-                string strSQL = $@"DELETE KhachHang WHERE MaKH = '{dtgvData.CurrentRow.Cells[0].Value.ToString().Trim()}'";
-                ConnectSQL.RunQuery(strSQL);
+                string strSQL = "DELETE KhachHang WHERE MaKH = @MaKH";
+                List<SqlParameter> parameters = new List<SqlParameter> { new SqlParameter("@MaKH", dtgvData.CurrentRow.Cells[0].Value.ToString().Trim()) };
+                ConnectSQL.RunQuery(strSQL, parameters);
                 MessageBox.Show("Xóa thành công");
                 LoadData();
             }

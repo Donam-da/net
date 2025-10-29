@@ -1,7 +1,8 @@
-﻿using System;
+﻿﻿using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Data;
+using System.Data.SqlClient;
 using System.Drawing;
 using System.Linq;
 using System.Text;
@@ -18,8 +19,13 @@ namespace QuanLyCafe
         }
         private void LoadData()
         {
-            string strSQl = $@"SELECT * FROM LoaiDoUong WHERE TenLoai LIKE N'%{txtSearch.Text}%'";
-            dtgvData.DataSource = ConnectSQL.Load(strSQl);
+            string strSQl = "SELECT * FROM LoaiDoUong WHERE TenLoai LIKE @TenLoai";
+            List<SqlParameter> parameters = new List<SqlParameter>
+            {
+                new SqlParameter("@TenLoai", "%" + txtSearch.Text + "%")
+            };
+
+            dtgvData.DataSource = ConnectSQL.Load(strSQl, parameters);
             frmNhanVien.SetupDataGridView(dtgvData);
             dtgvData.Columns[0].HeaderText = "Mã loại";
             dtgvData.Columns[1].HeaderText = "Tên loại";
@@ -55,16 +61,23 @@ namespace QuanLyCafe
                 txtTenLoai.Focus();
                 return;
             }
-            string strSQL = $@"SELECT * FROM LoaiDoUong WHERE MaLoai = '{txtMaLoai.Text}'";
-            if (ConnectSQL.ExcuteReader_bool(strSQL))
+            string strSQL = "SELECT * FROM LoaiDoUong WHERE MaLoai = @MaLoai";
+            List<SqlParameter> checkParams = new List<SqlParameter> { new SqlParameter("@MaLoai", txtMaLoai.Text) };
+            if (ConnectSQL.ExcuteReader_bool(strSQL, checkParams))
             {
                 MessageBox.Show("Mã loại đồ uống này đã tồn tại, vui lòng tạo mã khác");
                 txtMaLoai.Focus();
                 return;
             }
-            strSQL = $@"INSERT INTO LoaiDoUong(MaLoai,TenLoai)
-                        VALUES ('{txtMaLoai.Text}',N'{txtTenLoai.Text}')";
-            ConnectSQL.RunQuery(strSQL);
+            strSQL = @"INSERT INTO LoaiDoUong(MaLoai, TenLoai)
+                       VALUES (@MaLoai, @TenLoai)";
+            List<SqlParameter> insertParams = new List<SqlParameter>
+            {
+                new SqlParameter("@MaLoai", txtMaLoai.Text),
+                new SqlParameter("@TenLoai", txtTenLoai.Text)
+            };
+
+            ConnectSQL.RunQuery(strSQL, insertParams);
             MessageBox.Show("Thêm thành công");
             LoadData();
         }
@@ -94,18 +107,26 @@ namespace QuanLyCafe
                 txtTenLoai.Focus();
                 return;
             }
-            string strSQL = $@"SELECT * FROM LoaiDoUong WHERE MaLoai = '{txtMaLoai.Text}'";
             string MaLoaiSua = dtgvData.CurrentRow.Cells[0].Value.ToString().Trim();
-            if (ConnectSQL.ExcuteReader_bool(strSQL) && txtMaLoai.Text.Trim() != MaLoaiSua)
+            if (txtMaLoai.Text.Trim() != MaLoaiSua)
             {
-                MessageBox.Show("Mã loại đồ uống này đã tồn tại, vui lòng tạo mã khác");
-                txtMaLoai.Focus();
-                return;
+                string strSQLCheck = "SELECT * FROM LoaiDoUong WHERE MaLoai = @MaLoai";
+                List<SqlParameter> checkParams = new List<SqlParameter> { new SqlParameter("@MaLoai", txtMaLoai.Text.Trim()) };
+                if (ConnectSQL.ExcuteReader_bool(strSQLCheck, checkParams))
+                {
+                    MessageBox.Show("Mã loại đồ uống này đã tồn tại, vui lòng tạo mã khác");
+                    txtMaLoai.Focus();
+                    return;
+                }
             }
-            strSQL = $@"UPDATE LoaiDoUong SET MaLoai = '{txtMaLoai.Text}'
-                        ,TenLoai = N'{txtTenLoai.Text}'
-                        WHERE MaLoai = '{MaLoaiSua}'";
-            ConnectSQL.RunQuery(strSQL);
+            string strSQL = @"UPDATE LoaiDoUong SET MaLoai = @MaLoai, TenLoai = @TenLoai WHERE MaLoai = @MaLoaiSua";
+            List<SqlParameter> updateParams = new List<SqlParameter>
+            {
+                new SqlParameter("@MaLoai", txtMaLoai.Text),
+                new SqlParameter("@TenLoai", txtTenLoai.Text),
+                new SqlParameter("@MaLoaiSua", MaLoaiSua)
+            };
+            ConnectSQL.RunQuery(strSQL, updateParams);
             MessageBox.Show("Sửa thành công");
             LoadData();
         }
@@ -128,18 +149,19 @@ namespace QuanLyCafe
                 return;
             }
 
-            string strCheck = $@"SELECT * FROM DoUong WHERE MaLoai = '{dtgvData.CurrentRow.Cells["MaLoai"].Value.ToString().Trim()}'";
-            if(ConnectSQL.ExcuteReader_bool(strCheck))
+            string strCheck = "SELECT * FROM DoUong WHERE MaLoai = @MaLoai";
+            List<SqlParameter> checkParams = new List<SqlParameter> { new SqlParameter("@MaLoai", dtgvData.CurrentRow.Cells["MaLoai"].Value.ToString().Trim()) };
+            if (ConnectSQL.ExcuteReader_bool(strCheck, checkParams))
             {
                 MessageBox.Show("Dữ liệu đã phát sinh khóa ngoại trong bảng DoUong, không xóa được");
                 return;
             }    
             DialogResult result = MessageBox.Show("Bạn có chắc chắn xóa?", "Xác nhận", MessageBoxButtons.YesNo, MessageBoxIcon.Question);
-
             if (result == DialogResult.Yes)
             {
-                string strSQL = $@"DELETE LoaiDoUong WHERE MaLoai = '{dtgvData.CurrentRow.Cells[0].Value.ToString().Trim()}'";
-                ConnectSQL.RunQuery(strSQL);
+                string strSQL = "DELETE LoaiDoUong WHERE MaLoai = @MaLoai";
+                List<SqlParameter> deleteParams = new List<SqlParameter> { new SqlParameter("@MaLoai", dtgvData.CurrentRow.Cells[0].Value.ToString().Trim()) };
+                ConnectSQL.RunQuery(strSQL, deleteParams);
                 MessageBox.Show("Xóa thành công");
                 LoadData();
             }

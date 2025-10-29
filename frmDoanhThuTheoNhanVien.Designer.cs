@@ -1,4 +1,4 @@
-﻿namespace QuanLyCafe
+﻿﻿namespace QuanLyCafe
 {
     partial class frmDoanhThuTheoNhanVien
     {
@@ -31,7 +31,7 @@
             this.lblTongTien = new System.Windows.Forms.Label();
             this.label3 = new System.Windows.Forms.Label();
             this.dtgvData = new System.Windows.Forms.DataGridView();
-            this.btnThanhToan = new System.Windows.Forms.Button();
+            this.btnLocDuLieu = new System.Windows.Forms.Button();
             this.label2 = new System.Windows.Forms.Label();
             this.dtDTo = new System.Windows.Forms.DateTimePicker();
             this.label1 = new System.Windows.Forms.Label();
@@ -76,20 +76,20 @@
             this.dtgvData.TabIndex = 583;
             this.dtgvData.CellContentClick += new System.Windows.Forms.DataGridViewCellEventHandler(this.dtgvData_CellContentClick);
             // 
-            // btnThanhToan
+            // btnLocDuLieu
             // 
-            this.btnThanhToan.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(0)))), ((int)(((byte)(0)))), ((int)(((byte)(192)))));
-            this.btnThanhToan.FlatStyle = System.Windows.Forms.FlatStyle.Popup;
-            this.btnThanhToan.Font = new System.Drawing.Font("Microsoft Sans Serif", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.btnThanhToan.ForeColor = System.Drawing.Color.White;
-            this.btnThanhToan.Location = new System.Drawing.Point(787, 9);
-            this.btnThanhToan.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
-            this.btnThanhToan.Name = "btnThanhToan";
-            this.btnThanhToan.Size = new System.Drawing.Size(195, 37);
-            this.btnThanhToan.TabIndex = 582;
-            this.btnThanhToan.Text = "Lọc dữ liệu";
-            this.btnThanhToan.UseVisualStyleBackColor = false;
-            this.btnThanhToan.Click += new System.EventHandler(this.btnThanhToan_Click);
+            this.btnLocDuLieu.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(0)))), ((int)(((byte)(0)))), ((int)(((byte)(192)))));
+            this.btnLocDuLieu.FlatStyle = System.Windows.Forms.FlatStyle.Popup;
+            this.btnLocDuLieu.Font = new System.Drawing.Font("Microsoft Sans Serif", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.btnLocDuLieu.ForeColor = System.Drawing.Color.White;
+            this.btnLocDuLieu.Location = new System.Drawing.Point(787, 9);
+            this.btnLocDuLieu.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.btnLocDuLieu.Name = "btnLocDuLieu";
+            this.btnLocDuLieu.Size = new System.Drawing.Size(195, 37);
+            this.btnLocDuLieu.TabIndex = 582;
+            this.btnLocDuLieu.Text = "Lọc dữ liệu";
+            this.btnLocDuLieu.UseVisualStyleBackColor = false;
+            this.btnLocDuLieu.Click += new System.EventHandler(this.btnLocDuLieu_Click);
             // 
             // label2
             // 
@@ -142,7 +142,7 @@
             this.Controls.Add(this.lblTongTien);
             this.Controls.Add(this.label3);
             this.Controls.Add(this.dtgvData);
-            this.Controls.Add(this.btnThanhToan);
+            this.Controls.Add(this.btnLocDuLieu);
             this.Controls.Add(this.label2);
             this.Controls.Add(this.dtDTo);
             this.Controls.Add(this.label1);
@@ -162,7 +162,7 @@
         private System.Windows.Forms.Label lblTongTien;
         private System.Windows.Forms.Label label3;
         private System.Windows.Forms.DataGridView dtgvData;
-        private System.Windows.Forms.Button btnThanhToan;
+        private System.Windows.Forms.Button btnLocDuLieu;
         private System.Windows.Forms.Label label2;
         private System.Windows.Forms.DateTimePicker dtDTo;
         private System.Windows.Forms.Label label1;

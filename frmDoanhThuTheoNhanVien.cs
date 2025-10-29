@@ -1,7 +1,8 @@
-﻿using System;
+﻿﻿using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Data;
+using System.Data.SqlClient;
 using System.Drawing;
 using System.Linq;
 using System.Text;
@@ -18,29 +19,38 @@ namespace QuanLyCafe
         }
         private void LoadData()
         {
-            string strSQl = $@"SELECT b.TenNV,SUM(TongTien) AS TongTien 
+            // Sử dụng câu lệnh tham số hóa để tránh lỗi SQL Injection
+            string strSQl = $@"SELECT b.TenNV, SUM(a.TongTien) AS TongTien 
                                 FROM HoaDon a INNER JOIN NhanVien b ON a.MaNV = b.MaNV 
-                                WHERE NgayLap BETWEEN '{dtDFrom.Value.ToString("yyyyMMdd")}'
-                                              AND '{dtDTo.Value.ToString("yyyyMMdd")}'
-                                GROUP BY  b.TenNV";
+                                WHERE a.TrangThai = 1 AND a.NgayLap BETWEEN @FromDate AND @ToDate
+                                GROUP BY b.TenNV
+                                ORDER BY TongTien DESC";
+
+            List<SqlParameter> parameters = new List<SqlParameter>
+            {
+                new SqlParameter("@FromDate", dtDFrom.Value.ToString("yyyy-MM-dd")),
+                new SqlParameter("@ToDate", dtDTo.Value.ToString("yyyy-MM-dd"))
+            };
+
             DataTable dt = new DataTable();
-            dt = ConnectSQL.Load(strSQl);
+            dt = ConnectSQL.Load(strSQl, parameters); // Gọi hàm Load đã được tham số hóa
             dtgvData.DataSource = dt;
+
             frmNhanVien.SetupDataGridView(dtgvData);
             dtgvData.Columns[0].HeaderText = "Tên nhân viên";
             dtgvData.Columns[1].HeaderText = "Tổng tiền";
+            dtgvData.Columns[1].DefaultCellStyle.Format = "N0";
+            dtgvData.Columns[1].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleRight;
+
             if (dtgvData.Rows.Count == 0)
             {
                 lblTongTien.Text = "0 VNĐ";
             }
             else
             {
-                decimal total = 0;
-                for (int i = 0; i < dt.Rows.Count; i++)
-                {
-                    total += decimal.Parse(dt.Rows[i]["TongTien"].ToString());
-                }
-                lblTongTien.Text = total.ToString("N0");
+                // Sử dụng DataTable.Compute để tính tổng hiệu quả hơn
+                object total = dt.Compute("SUM(TongTien)", string.Empty);
+                lblTongTien.Text = Convert.ToDecimal(total).ToString("N0") + " VNĐ";
             }
         }
         private void frmDoanhThuTheoNhanVien_Load(object sender, EventArgs e)
@@ -48,7 +58,7 @@ namespace QuanLyCafe
             LoadData();
         }
 
-        private void btnThanhToan_Click(object sender, EventArgs e)
+        private void btnLocDuLieu_Click(object sender, EventArgs e)
         {
             LoadData();
         }
